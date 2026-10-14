@@ -1,0 +1,32 @@
+{
+  "name": "jungle-runner",
+  "version": "1.0.0",
+  "description": "3D Jungle Endless Runner Game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "threejs",
+    "game",
+    "runner",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.183.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.183.0",
+    "happy-dom": "^20.8.9",
+    "playwright": "^1.64.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.4"
+  }
+}
