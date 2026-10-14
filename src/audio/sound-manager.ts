@@ -9,8 +9,8 @@ export class SoundManager {
   private masterGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
-  private musicTimer: number | null = null;
   private isInitialized: boolean = false;
+  private musicTimer: number | null = null;
   private isPlayingMusic: boolean = false;
   private beatStep: number = 0;
 
@@ -75,6 +75,10 @@ export class SoundManager {
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 0.7, this.ctx.currentTime);
     }
+  }
+
+  public isAudioInitialized(): boolean {
+    return this.isInitialized;
   }
 
   /**

@@ -247,6 +247,7 @@ export class Player {
     this.action = 'SLIDING';
     this.actionTimer = 0;
     this.actionDuration = CONFIG.PLAYER.SLIDE_DURATION;
+    this.y = 0;
     this.callbacks.onSlide?.();
   }
 
@@ -254,8 +255,7 @@ export class Player {
    * Frame update with frame-rate-independent delta time.
    */
   public update(dt: number, currentSpeed: number): void {
-    // Clamp delta time to avoid large jumps
-    const safeDt = Math.min(dt, CONFIG.SPEED.MAX_DELTA_TIME);
+    const safeDt = dt;
 
     if (!this.isAlive) {
       // Death tumble animation

@@ -129,6 +129,7 @@ export class ObstacleObject {
         this.mesh = createOverheadObstacleMesh();
         break;
       case OBSTACLE_TYPE.FULL_BLOCK:
+      default:
         this.mesh = createFullBlockObstacleMesh();
         break;
     }
