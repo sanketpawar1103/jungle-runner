@@ -1,38 +1,43 @@
 import * as THREE from 'three';
 import { CONFIG, getLaneX } from '../config';
 import { BoundingBox3D, CoinInstance, Lane } from '../types';
+import { textureManager } from '../utils/procedural-textures';
 
 let coinIdCounter = 1;
 
 /**
- * Creates a stylized golden coin 3D mesh with an embossed rim.
+ * Creates realistic ancient golden sun medallion 3D mesh.
  */
 function createCoinMesh(): THREE.Group {
   const group = new THREE.Group();
-  group.name = 'GoldenCoin';
+  group.name = 'GoldenSunMedallion';
+
+  const coinTex = textureManager.getGoldCoinTexture();
 
   const goldMat = new THREE.MeshStandardMaterial({
-    color: 0xffd700,
-    metalness: 0.85,
-    roughness: 0.25,
-    emissive: 0x553e00,
+    map: coinTex,
+    color: 0xffdf55,
+    metalness: 0.92,
+    roughness: 0.22,
+    emissive: 0x442c00,
   });
 
-  const rimMat = new THREE.MeshStandardMaterial({
-    color: 0xffa500,
-    metalness: 0.9,
-    roughness: 0.2,
+  const edgeMat = new THREE.MeshStandardMaterial({
+    color: 0xc99700,
+    metalness: 0.95,
+    roughness: 0.28,
   });
 
-  // Main coin disc
-  const discGeo = new THREE.CylinderGeometry(CONFIG.COINS.RADIUS, CONFIG.COINS.RADIUS, CONFIG.COINS.THICKNESS, 16);
+  // Main coin medallion disc
+  const discGeo = new THREE.CylinderGeometry(CONFIG.COINS.RADIUS, CONFIG.COINS.RADIUS, CONFIG.COINS.THICKNESS, 20);
   discGeo.rotateX(Math.PI / 2);
-  const discMesh = new THREE.Mesh(discGeo, goldMat);
+  const discMesh = new THREE.Mesh(discGeo, [edgeMat, goldMat, goldMat]);
+  discMesh.castShadow = true;
   group.add(discMesh);
 
-  // Outer raised rim
-  const rimGeo = new THREE.TorusGeometry(CONFIG.COINS.RADIUS * 0.88, 0.045, 8, 16);
-  const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+  // Raised beaded outer rim
+  const rimGeo = new THREE.TorusGeometry(CONFIG.COINS.RADIUS * 0.9, 0.045, 10, 24);
+  const rimMesh = new THREE.Mesh(rimGeo, edgeMat);
   group.add(rimMesh);
 
   return group;
@@ -109,9 +114,6 @@ export class CoinObject {
   }
 }
 
-/**
- * Object pool for reusable golden coins.
- */
 export class CoinPool {
   public pool: CoinObject[] = [];
 

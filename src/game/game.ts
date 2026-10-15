@@ -22,6 +22,11 @@ export class Game {
   private dirLight: THREE.DirectionalLight;
   private canvas: HTMLCanvasElement;
 
+  // Cinematic Environmental Effects
+  private sunbeamsGroup: THREE.Group;
+  private sporeParticles: THREE.Points;
+  private particlePositions: Float32Array;
+
   // Subsystems
   private player: Player;
   private trackManager: TrackManager;
@@ -42,7 +47,7 @@ export class Game {
   private animationFrameId: number | null = null;
   private isDisposed: boolean = false;
 
-  // Event handler references for clean removal
+  // Event handler references
   private handleKeyDownBound: (e: KeyboardEvent) => void;
   private handleResizeBound: () => void;
   private handleVisibilityChangeBound: () => void;
@@ -57,28 +62,42 @@ export class Game {
     this.camera.position.set(0, CONFIG.CAMERA.OFFSET_Y, CONFIG.CAMERA.OFFSET_Z);
     this.camera.lookAt(0, CONFIG.CAMERA.LOOK_AT_Y, CONFIG.CAMERA.LOOK_AT_Z);
 
-    // Initial fog
+    // Cinematic fog
     const initialZoneConfig = CONFIG.ZONES.LUSH_JUNGLE;
     this.scene.fog = new THREE.FogExp2(initialZoneConfig.fogColor, initialZoneConfig.fogDensity);
 
     // 2. Lighting setup
+    // Sky/ground hemisphere for realistic ambient bounce — sky warm gold, ground deep moss green
+    const hemisphereLight = new THREE.HemisphereLight(0xffe4a0, 0x2a4a18, 0.75);
+    this.scene.add(hemisphereLight);
+
     this.ambientLight = new THREE.AmbientLight(initialZoneConfig.ambientColor, initialZoneConfig.ambientIntensity);
     this.scene.add(this.ambientLight);
 
     this.dirLight = new THREE.DirectionalLight(initialZoneConfig.sunColor, initialZoneConfig.sunIntensity);
-    this.dirLight.position.set(15, 30, 20);
+    this.dirLight.position.set(18, 38, 22);
     this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.width = 1024;
-    this.dirLight.shadow.mapSize.height = 1024;
+    this.dirLight.shadow.mapSize.width = 2048;
+    this.dirLight.shadow.mapSize.height = 2048;
     this.dirLight.shadow.camera.near = 10;
-    this.dirLight.shadow.camera.far = 100;
-    this.dirLight.shadow.camera.left = -15;
-    this.dirLight.shadow.camera.right = 15;
-    this.dirLight.shadow.camera.top = 20;
-    this.dirLight.shadow.camera.bottom = -10;
+    this.dirLight.shadow.camera.far = 120;
+    this.dirLight.shadow.camera.left = -20;
+    this.dirLight.shadow.camera.right = 20;
+    this.dirLight.shadow.camera.top = 25;
+    this.dirLight.shadow.camera.bottom = -12;
     this.scene.add(this.dirLight);
 
-    // 3. WebGL Renderer
+    // Cool blue-violet rim/fill light from behind-left for cinematic depth on character skin
+    const rimLight = new THREE.DirectionalLight(0x88aaff, 0.55);
+    rimLight.position.set(-12, 8, 10);
+    this.scene.add(rimLight);
+
+    // Warm secondary fill from below canopy — simulates light bouncing off the ground foliage
+    const fillLight = new THREE.PointLight(0x6fcf50, 0.7, 28);
+    fillLight.position.set(0, 0.8, -6);
+    this.scene.add(fillLight);
+
+    // 3. WebGL Renderer with ACES Filmic Tone Mapping for cinematic color response
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       antialias: true,
@@ -88,8 +107,20 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.15;
 
-    // 4. Instantiate gameplay subsystems
+    // 4. Volumetric Sunbeams / Crepuscular God Rays (matching reference image)
+    this.sunbeamsGroup = this.createSunbeams();
+    this.scene.add(this.sunbeamsGroup);
+
+    // 5. Airborne Jungle Spore Particle System
+    const particleData = this.createSporeParticles();
+    this.sporeParticles = particleData.points;
+    this.particlePositions = particleData.positions;
+    this.scene.add(this.sporeParticles);
+
+    // 6. Instantiate gameplay subsystems
     this.player = new Player({
       onGameOver: (reason) => this.handleGameOver(reason),
       onLaneSwitch: () => soundManager.playLaneSwitch(),
@@ -103,10 +134,10 @@ export class Game {
     this.coinPool = new CoinPool(this.scene, CONFIG.COINS.POOL_SIZE);
     this.spawner = new WorldSpawner(this.scene, this.obstaclePool, this.coinPool);
 
-    // 5. Read persisted best distance
+    // 7. Read persisted best distance
     this.bestDistance = storageManager.getBestDistance();
 
-    // 6. UI Manager initialization
+    // 8. UI Manager initialization
     this.uiManager = new UIManager(uiContainer, {
       onStartGame: () => this.handleStartGame(),
       onResumeGame: () => this.togglePause(),
@@ -118,7 +149,7 @@ export class Game {
 
     this.uiManager.updateBestDistance(this.bestDistance);
 
-    // 7. Bind window & keyboard listeners
+    // 9. Bind window & keyboard listeners
     this.handleKeyDownBound = this.handleKeyDown.bind(this);
     this.handleResizeBound = this.handleResize.bind(this);
     this.handleVisibilityChangeBound = this.handleVisibilityChange.bind(this);
@@ -133,6 +164,60 @@ export class Game {
     // Start render loop
     this.lastTime = performance.now();
     this.animationFrameId = requestAnimationFrame(this.renderLoop.bind(this));
+  }
+
+  /**
+   * Creates atmospheric volumetric sunbeam shafts streaming from above the canopy.
+   */
+  private createSunbeams(): THREE.Group {
+    const group = new THREE.Group();
+    const beamGeo = new THREE.CylinderGeometry(0.8, 4.2, 45, 10, 1, true);
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: 0xffea9f,
+      transparent: true,
+      opacity: 0.16,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+
+    for (let i = 0; i < 6; i++) {
+      const beam = new THREE.Mesh(beamGeo, beamMat);
+      beam.position.set(-8 + i * 3.4, 18, -20 - i * 14);
+      beam.rotation.z = 0.28;
+      beam.rotation.x = -0.18;
+      group.add(beam);
+    }
+
+    return group;
+  }
+
+  /**
+   * Creates floating airborne spore/pollen particles illuminated by sunlight.
+   */
+  private createSporeParticles(): { points: THREE.Points; positions: Float32Array } {
+    const count = 180;
+    const positions = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 20; // x
+      positions[i * 3 + 1] = 0.5 + Math.random() * 8; // y
+      positions[i * 3 + 2] = -Math.random() * 80; // z
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const mat = new THREE.PointsMaterial({
+      color: 0xffe899,
+      size: 0.14,
+      transparent: true,
+      opacity: 0.65,
+      depthWrite: false,
+    });
+
+    const points = new THREE.Points(geo, mat);
+    return { points, positions };
   }
 
   public setGameState(newState: GameState): void {
@@ -150,13 +235,11 @@ export class Game {
     soundManager.playClick();
     await soundManager.initAudio();
 
-    // Reset run stats
     this.distance = 0;
     this.coins = 0;
     this.speed = CONFIG.SPEED.INITIAL;
     this.currentZone = 'LUSH_JUNGLE';
 
-    // Reset systems
     this.player.reset();
     this.trackManager.reset('LUSH_JUNGLE');
     this.obstaclePool.reset();
@@ -175,7 +258,7 @@ export class Game {
       this.setGameState('PAUSED');
     } else if (this.state === 'PAUSED') {
       soundManager.playClick();
-      this.lastTime = performance.now(); // reset delta clock
+      this.lastTime = performance.now();
       this.setGameState('RUNNING');
     }
   }
@@ -205,10 +288,6 @@ export class Game {
     }
   }
 
-  /**
-   * Keyboard event handler.
-   * Single deliberate action per press; key repeat ignored.
-   */
   private handleKeyDown(e: KeyboardEvent): void {
     if (e.code === 'Escape') {
       e.preventDefault();
@@ -218,12 +297,10 @@ export class Game {
       return;
     }
 
-    // Ignore all gameplay controls if not in RUNNING state
     if (this.state !== 'RUNNING') {
       return;
     }
 
-    // Ignore key repeat when holding down arrow keys
     if (e.repeat) {
       return;
     }
@@ -252,34 +329,28 @@ export class Game {
     }
   }
 
-  /**
-   * Automatically pauses when browser tab becomes hidden.
-   * Does NOT auto-resume when returning.
-   */
   private handleVisibilityChange(): void {
     if (document.hidden && this.state === 'RUNNING') {
       this.setGameState('PAUSED');
     }
   }
 
-  /**
-   * Main animation and frame-rate-independent simulation loop.
-   */
   private renderLoop(timestamp: number): void {
     if (this.isDisposed) return;
 
     const rawDt = (timestamp - this.lastTime) / 1000;
     this.lastTime = timestamp;
 
-    // Clamp dt to avoid physics spikes or huge leaps
     const dt = Math.min(rawDt, CONFIG.SPEED.MAX_DELTA_TIME);
 
     if (this.state === 'RUNNING') {
       this.updateSimulation(dt);
     } else if (this.state === 'GAME_OVER') {
-      // Allow death animation to complete
       this.player.update(dt, this.speed);
     }
+
+    // Animate spore motes floating gently
+    this.updateSporeParticles(dt);
 
     // Smooth camera tracking
     this.updateCamera(dt);
@@ -290,9 +361,18 @@ export class Game {
     this.animationFrameId = requestAnimationFrame(this.renderLoop.bind(this));
   }
 
-  /**
-   * Updates gameplay simulation: speed progression, distance, moving world, collisions.
-   */
+  private updateSporeParticles(dt: number): void {
+    const pos = this.particlePositions;
+    for (let i = 0; i < pos.length; i += 3) {
+      pos[i + 1] -= dt * 0.4; // slowly drift down
+      pos[i] += Math.sin(pos[i + 2] + pos[i + 1]) * dt * 0.15; // gentle breeze
+      if (pos[i + 1] < 0.2) {
+        pos[i + 1] = 7.5; // cycle to top
+      }
+    }
+    this.sporeParticles.geometry.attributes.position.needsUpdate = true;
+  }
+
   private updateSimulation(dt: number): void {
     // 1. Progressive speed increase up to MAX_SPEED
     if (this.speed < CONFIG.SPEED.MAX) {
@@ -313,7 +393,6 @@ export class Game {
     // 4. Update Player
     this.player.update(dt, this.speed);
 
-    // If player died from lane boundary rule, abort further simulation
     if (!this.player.isAlive) {
       return;
     }
@@ -350,7 +429,6 @@ export class Game {
   }
 
   private updateCamera(dt: number): void {
-    // Smooth camera follow on X axis for lane switches
     const targetCamX = this.player.x * 0.45;
     this.camera.position.x = THREE.MathUtils.damp(
       this.camera.position.x,
@@ -359,7 +437,6 @@ export class Game {
       dt
     );
 
-    // Subtle dynamic camera elevation during jumps
     const targetCamY = CONFIG.CAMERA.OFFSET_Y + this.player.y * 0.2;
     this.camera.position.y = THREE.MathUtils.damp(
       this.camera.position.y,
@@ -384,7 +461,6 @@ export class Game {
       this.dirLight.color.setHex(zoneConfig.sunColor);
       this.dirLight.intensity = zoneConfig.sunIntensity;
     } else {
-      // Smooth color transitions
       if (this.scene.fog instanceof THREE.FogExp2) {
         this.scene.fog.color.lerp(new THREE.Color(zoneConfig.fogColor), 0.08);
       }
@@ -396,18 +472,18 @@ export class Game {
   private getObstacleDeathReason(type: string): string {
     switch (type) {
       case 'LOW':
-        return 'Tripped on a low hurdle log!';
+        return 'Tripped over an ancient fallen jungle log!';
       case 'OVERHEAD':
-        return 'Crashed into an overhead stone barrier!';
+        return 'Collided with an ancient stone temple lintel!';
       case 'FULL_BLOCK':
-        return 'Smashed into an ancient stone totem!';
+        return 'Smashed into a carved stone ruin totem!';
       default:
-        return 'Collided with an obstacle!';
+        return 'Collided with an ancient obstacle!';
     }
   }
 
   private handleGameOver(reason: string): void {
-    if (this.state === 'GAME_OVER') return; // Ensure triggered only once
+    if (this.state === 'GAME_OVER') return;
 
     soundManager.playCrash();
     soundManager.stopMusic();

@@ -63,9 +63,9 @@ export class UIManager {
       <div id="screen-menu" class="ui-screen">
         <div class="screen-panel menu-panel">
           <div class="game-logo">
-            <span class="logo-icon">🗿</span>
-            <h1 class="game-title">JUNGLE RUNNER</h1>
-            <span class="game-subtitle">ANCIENT TEMPLE ESCAPE</span>
+            <span class="logo-icon">🌴</span>
+            <h1 class="game-title">TARZAN</h1>
+            <span class="game-subtitle">JUNGLE RUNNER: TEMPLE ESCAPE</span>
           </div>
 
           <div class="best-score-badge">

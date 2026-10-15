@@ -1,77 +1,102 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config';
 import { VisualZone } from '../types';
+import { textureManager } from '../utils/procedural-textures';
 
 export class TrackSection {
   public mesh: THREE.Group;
   public z: number = 0;
   public zone: VisualZone = 'LUSH_JUNGLE';
 
-  // Specific zone decoration groups
+  // Zone decoration groups
   private jungleDecorGroup: THREE.Group;
   private ruinsDecorGroup: THREE.Group;
   private stoneDecorGroup: THREE.Group;
 
   constructor() {
     this.mesh = new THREE.Group();
-    this.mesh.name = 'TrackSection';
+    this.mesh.name = 'CinematicTrackSection';
 
     const sectionLength = CONFIG.WORLD.SECTION_LENGTH;
     const trackWidth = CONFIG.WORLD.TRACK_WIDTH;
 
-    // 1. Main 3-Lane Track Surface (Stone Path)
+    // 1. Ancient Flagstone Road (Realistic PBR stone with moss in crevices)
+    const stoneTex = textureManager.getAncientStoneTexture();
     const trackGeo = new THREE.PlaneGeometry(trackWidth, sectionLength);
     trackGeo.rotateX(-Math.PI / 2);
-    const trackMat = new THREE.MeshLambertMaterial({ color: 0x3d352a });
+    const trackMat = new THREE.MeshStandardMaterial({
+      map: stoneTex,
+      roughness: 0.85,
+      metalness: 0.1,
+    });
     const trackMesh = new THREE.Mesh(trackGeo, trackMat);
     trackMesh.receiveShadow = true;
     this.mesh.add(trackMesh);
 
-    // 2. Lane Dividers (two subtle dashed or textured lines separating the 3 lanes)
-    const dividerMat = new THREE.MeshBasicMaterial({ color: 0x6e6353 });
+    // 2. Subtle Aged Lane Inset Grooves (natural stone cuts separating the 3 lanes)
+    const grooveMat = new THREE.MeshStandardMaterial({
+      color: 0x1f1d19,
+      roughness: 0.95,
+    });
     const lineX1 = -CONFIG.LANE_WIDTH / 2;
     const lineX2 = CONFIG.LANE_WIDTH / 2;
 
-    const lineGeo = new THREE.PlaneGeometry(0.12, sectionLength);
-    lineGeo.rotateX(-Math.PI / 2);
+    const grooveGeo = new THREE.PlaneGeometry(0.14, sectionLength);
+    grooveGeo.rotateX(-Math.PI / 2);
 
-    const divider1 = new THREE.Mesh(lineGeo, dividerMat);
-    divider1.position.set(lineX1, 0.01, 0);
+    const divider1 = new THREE.Mesh(grooveGeo, grooveMat);
+    divider1.position.set(lineX1, 0.015, 0);
+    divider1.receiveShadow = true;
     this.mesh.add(divider1);
 
-    const divider2 = new THREE.Mesh(lineGeo, dividerMat);
-    divider2.position.set(lineX2, 0.01, 0);
+    const divider2 = new THREE.Mesh(grooveGeo, grooveMat);
+    divider2.position.set(lineX2, 0.015, 0);
+    divider2.receiveShadow = true;
     this.mesh.add(divider2);
 
-    // 3. Side Curbs
-    const curbGeo = new THREE.BoxGeometry(0.4, 0.25, sectionLength);
-    const curbMat = new THREE.MeshLambertMaterial({ color: 0x225528 });
+    // 3. Ancient Moss-Covered Stone Curbs
+    const curbGeo = new THREE.BoxGeometry(0.45, 0.35, sectionLength);
+    const curbMat = new THREE.MeshStandardMaterial({
+      color: 0x424039,
+      roughness: 0.9,
+    });
 
     const leftCurb = new THREE.Mesh(curbGeo, curbMat);
-    leftCurb.position.set(-trackWidth / 2 + 0.2, 0.1, 0);
+    leftCurb.position.set(-trackWidth / 2 + 0.22, 0.15, 0);
+    leftCurb.castShadow = true;
+    leftCurb.receiveShadow = true;
     this.mesh.add(leftCurb);
 
     const rightCurb = new THREE.Mesh(curbGeo, curbMat);
-    rightCurb.position.set(trackWidth / 2 - 0.2, 0.1, 0);
+    rightCurb.position.set(trackWidth / 2 - 0.22, 0.15, 0);
+    rightCurb.castShadow = true;
+    rightCurb.receiveShadow = true;
     this.mesh.add(rightCurb);
 
-    // 4. Side Terrain Banks (ground extending to the sides)
-    const groundGeo = new THREE.PlaneGeometry(24, sectionLength);
+    // 4. Natural Jungle Forest Floor Soil with Scattered Foliage
+    const groundTex = textureManager.getJungleGroundTexture();
+    const groundGeo = new THREE.PlaneGeometry(32, sectionLength);
     groundGeo.rotateX(-Math.PI / 2);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x1f381c });
+    const groundMat = new THREE.MeshStandardMaterial({
+      map: groundTex,
+      roughness: 0.95,
+      metalness: 0.05,
+    });
 
     const leftGround = new THREE.Mesh(groundGeo, groundMat);
-    leftGround.position.set(-trackWidth / 2 - 12, -0.05, 0);
+    leftGround.position.set(-trackWidth / 2 - 16, -0.05, 0);
+    leftGround.receiveShadow = true;
     this.mesh.add(leftGround);
 
     const rightGround = new THREE.Mesh(groundGeo, groundMat);
-    rightGround.position.set(trackWidth / 2 + 12, -0.05, 0);
+    rightGround.position.set(trackWidth / 2 + 16, -0.05, 0);
+    rightGround.receiveShadow = true;
     this.mesh.add(rightGround);
 
-    // 5. Zone-specific Scenery Groups
-    this.jungleDecorGroup = this.createJungleDecor(sectionLength, trackWidth);
-    this.ruinsDecorGroup = this.createRuinsDecor(sectionLength, trackWidth);
-    this.stoneDecorGroup = this.createStonePassageDecor(sectionLength, trackWidth);
+    // 5. Zone Scenery Groups
+    this.jungleDecorGroup = this.createRealisticJungleDecor(sectionLength, trackWidth);
+    this.ruinsDecorGroup = this.createAncientTempleRuinsDecor(sectionLength, trackWidth);
+    this.stoneDecorGroup = this.createMossyPassageDecor(sectionLength, trackWidth);
 
     this.mesh.add(this.jungleDecorGroup);
     this.mesh.add(this.ruinsDecorGroup);
@@ -80,129 +105,274 @@ export class TrackSection {
     this.setZone('LUSH_JUNGLE');
   }
 
-  private createJungleDecor(length: number, trackWidth: number): THREE.Group {
+  /**
+   * Zone 1: Lush Rainforest with massive canopy trees, fluted roots, and tropical undergrowth.
+   */
+  private createRealisticJungleDecor(length: number, trackWidth: number): THREE.Group {
     const group = new THREE.Group();
-    const treeMat = new THREE.MeshLambertMaterial({ color: 0x4a3728 });
-    const leafMat = new THREE.MeshLambertMaterial({ color: 0x228b22 });
-    const bushMat = new THREE.MeshLambertMaterial({ color: 0x1e6f1d });
+    const barkTex = textureManager.getTreeBarkTexture();
 
-    const treeTrunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 6.0, 7);
-    const canopyGeo = new THREE.ConeGeometry(2.4, 4.5, 7);
-    const bushGeo = new THREE.DodecahedronGeometry(1.2, 1);
+    const barkMat = new THREE.MeshStandardMaterial({
+      map: barkTex,
+      roughness: 0.9,
+    });
+    const canopyMat = new THREE.MeshStandardMaterial({
+      color: 0x225518,
+      roughness: 0.75,
+      flatShading: true,
+    });
+    const fernMat = new THREE.MeshStandardMaterial({
+      color: 0x3d7e22,
+      roughness: 0.65,
+    });
 
-    // Place trees and bushes along left and right sides
-    for (let i = -length / 2 + 3; i < length / 2; i += 7) {
-      // Left side tree
+    const trunkGeo = new THREE.CylinderGeometry(0.55, 0.95, 8.5, 9);
+    const rootGeo = new THREE.ConeGeometry(0.4, 1.8, 6);
+    rootGeo.rotateZ(Math.PI / 4);
+
+    const canopyGeo = new THREE.DodecahedronGeometry(3.2, 1);
+    const fernLeafGeo = new THREE.ConeGeometry(0.7, 2.2, 4);
+
+    for (let i = -length / 2 + 4; i < length / 2; i += 8) {
+      // Left Rainforest Tree with Buttress Roots
       const leftTree = new THREE.Group();
-      const trunk1 = new THREE.Mesh(treeTrunkGeo, treeMat);
-      trunk1.position.y = 3;
-      const canopy1 = new THREE.Mesh(canopyGeo, leafMat);
-      canopy1.position.y = 6.2;
+      const trunk1 = new THREE.Mesh(trunkGeo, barkMat);
+      trunk1.position.y = 4.25;
+      trunk1.castShadow = true;
       leftTree.add(trunk1);
-      leftTree.add(canopy1);
-      leftTree.position.set(-trackWidth / 2 - 2.8 - Math.random() * 2, 0, i);
+
+      // Fluted buttress roots
+      const r1 = new THREE.Mesh(rootGeo, barkMat);
+      r1.position.set(0.6, 0.4, 0.5);
+      leftTree.add(r1);
+
+      // Multi-cluster canopy
+      const c1 = new THREE.Mesh(canopyGeo, canopyMat);
+      c1.position.set(0, 8.5, 0);
+      c1.castShadow = true;
+      leftTree.add(c1);
+
+      const c2 = new THREE.Mesh(canopyGeo, canopyMat);
+      c2.position.set(0.8, 7.8, -0.6);
+      c2.scale.set(0.7, 0.7, 0.7);
+      leftTree.add(c2);
+
+      leftTree.position.set(-trackWidth / 2 - 3.2 - Math.random() * 2, 0, i);
       group.add(leftTree);
 
-      // Right side tree
+      // Right Rainforest Tree
       const rightTree = new THREE.Group();
-      const trunk2 = new THREE.Mesh(treeTrunkGeo, treeMat);
-      trunk2.position.y = 3;
-      const canopy2 = new THREE.Mesh(canopyGeo, leafMat);
-      canopy2.position.y = 6.2;
+      const trunk2 = new THREE.Mesh(trunkGeo, barkMat);
+      trunk2.position.y = 4.25;
+      trunk2.castShadow = true;
       rightTree.add(trunk2);
-      rightTree.add(canopy2);
-      rightTree.position.set(trackWidth / 2 + 2.8 + Math.random() * 2, 0, i + 3.5);
+
+      const c3 = new THREE.Mesh(canopyGeo, canopyMat);
+      c3.position.set(0, 8.5, 0);
+      c3.castShadow = true;
+      rightTree.add(c3);
+
+      rightTree.position.set(trackWidth / 2 + 3.2 + Math.random() * 2, 0, i + 3.5);
       group.add(rightTree);
 
-      // Bushes
-      const bush1 = new THREE.Mesh(bushGeo, bushMat);
-      bush1.position.set(-trackWidth / 2 - 1.2, 0.5, i + 2);
-      group.add(bush1);
+      // Giant Jungle Ferns along track edge
+      const fern = new THREE.Group();
+      for (let f = 0; f < 5; f++) {
+        const leaf = new THREE.Mesh(fernLeafGeo, fernMat);
+        leaf.rotation.z = 0.6 * Math.cos((f * Math.PI * 2) / 5);
+        leaf.rotation.x = 0.6 * Math.sin((f * Math.PI * 2) / 5);
+        leaf.position.y = 0.6;
+        fern.add(leaf);
+      }
+      fern.position.set(-trackWidth / 2 - 1.2, 0, i + 2);
+      group.add(fern);
 
-      const bush2 = new THREE.Mesh(bushGeo, bushMat);
-      bush2.position.set(trackWidth / 2 + 1.2, 0.5, i - 1.5);
-      group.add(bush2);
-    }
+      // Overhead Jungle Canopy Arches with Dappled Leaves & Hanging Lianas
+      if (Math.abs(i) < 4) {
+        const archBranchGeo = new THREE.CylinderGeometry(0.22, 0.32, trackWidth + 8, 8);
+        archBranchGeo.rotateZ(Math.PI / 2);
+        const archBranch = new THREE.Mesh(archBranchGeo, barkMat);
+        archBranch.position.set(0, 8.6, i);
+        archBranch.castShadow = true;
+        group.add(archBranch);
 
-    return group;
-  }
+        const archLeaves = new THREE.Mesh(new THREE.DodecahedronGeometry(2.5, 1), canopyMat);
+        archLeaves.position.set(0, 9.5, i);
+        archLeaves.castShadow = true;
+        group.add(archLeaves);
 
-  private createRuinsDecor(length: number, trackWidth: number): THREE.Group {
-    const group = new THREE.Group();
-    const stoneMat = new THREE.MeshLambertMaterial({ color: 0x8a7d6e });
-    const darkStoneMat = new THREE.MeshLambertMaterial({ color: 0x5a5043 });
-
-    const pillarGeo = new THREE.CylinderGeometry(0.5, 0.65, 5.5, 8);
-    const capitalGeo = new THREE.BoxGeometry(1.4, 0.45, 1.4);
-
-    // Stone pillars and broken archways on edges
-    for (let i = -length / 2 + 4; i < length / 2; i += 9) {
-      // Left Pillar
-      const leftPillar = new THREE.Group();
-      const p1 = new THREE.Mesh(pillarGeo, stoneMat);
-      p1.position.y = 2.75;
-      const c1 = new THREE.Mesh(capitalGeo, darkStoneMat);
-      c1.position.y = 5.6;
-      leftPillar.add(p1);
-      leftPillar.add(c1);
-      leftPillar.position.set(-trackWidth / 2 - 1.6, 0, i);
-      group.add(leftPillar);
-
-      // Right Pillar
-      const rightPillar = new THREE.Group();
-      const p2 = new THREE.Mesh(pillarGeo, stoneMat);
-      p2.position.y = 2.75;
-      const c2 = new THREE.Mesh(capitalGeo, darkStoneMat);
-      c2.position.y = 5.6;
-      rightPillar.add(p2);
-      rightPillar.add(c2);
-      rightPillar.position.set(trackWidth / 2 + 1.6, 0, i);
-      group.add(rightPillar);
-
-      // Arch beam connecting pillars over the track periodically
-      if (Math.abs(i) < 2) {
-        const archBeamGeo = new THREE.BoxGeometry(trackWidth + 3.8, 0.7, 1.0);
-        const archBeam = new THREE.Mesh(archBeamGeo, stoneMat);
-        archBeam.position.set(0, 6.0, i);
-        group.add(archBeam);
+        // Hanging jungle vines
+        const lianaGeo = new THREE.CylinderGeometry(0.025, 0.035, 3.2, 4);
+        for (let v = -2.2; v <= 2.2; v += 2.2) {
+          const liana = new THREE.Mesh(lianaGeo, fernMat);
+          liana.position.set(v, 6.8, i);
+          group.add(liana);
+        }
       }
     }
 
     return group;
   }
 
-  private createStonePassageDecor(length: number, trackWidth: number): THREE.Group {
+  /**
+   * Zone 2: Ancient Temple Ruins (closely matching the provided reference image!)
+   * Features multi-tiered stone step pyramids, moss-covered brick walls, and carved stone ruins.
+   */
+  private createAncientTempleRuinsDecor(length: number, trackWidth: number): THREE.Group {
     const group = new THREE.Group();
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0x323a40 });
-    const mossMat = new THREE.MeshLambertMaterial({ color: 0x274330 });
-    const torchMat = new THREE.MeshBasicMaterial({ color: 0xffaa33 }); // glowing torch/lantern
+    const stoneTex = textureManager.getAncientStoneTexture();
 
-    // Massive stone side walls flanking track
-    const wallGeo = new THREE.BoxGeometry(1.8, 6.5, length);
+    const templeStoneMat = new THREE.MeshStandardMaterial({
+      map: stoneTex,
+      roughness: 0.85,
+    });
+    const mossCoverMat = new THREE.MeshStandardMaterial({
+      color: 0x3b5f25,
+      roughness: 0.9,
+    });
+
+    // Multi-tiered stone steps and temple structures on sides
+    for (let i = -length / 2 + 5; i < length / 2; i += 10) {
+      // Left Multi-Tiered Temple Ruins
+      const leftRuin = new THREE.Group();
+
+      // Tier 1 Base
+      const tier1Geo = new THREE.BoxGeometry(4.2, 1.2, 7.5);
+      const tier1 = new THREE.Mesh(tier1Geo, templeStoneMat);
+      tier1.position.set(0, 0.6, 0);
+      tier1.castShadow = true;
+      tier1.receiveShadow = true;
+      leftRuin.add(tier1);
+
+      // Moss cap on Tier 1
+      const moss1 = new THREE.Mesh(new THREE.BoxGeometry(4.3, 0.15, 7.6), mossCoverMat);
+      moss1.position.set(0, 1.25, 0);
+      leftRuin.add(moss1);
+
+      // Tier 2
+      const tier2Geo = new THREE.BoxGeometry(3.0, 1.4, 5.5);
+      const tier2 = new THREE.Mesh(tier2Geo, templeStoneMat);
+      tier2.position.set(-0.4, 1.9, 0);
+      tier2.castShadow = true;
+      tier2.receiveShadow = true;
+      leftRuin.add(tier2);
+
+      // Ancient temple sanctuary columns on top
+      const colGeo = new THREE.CylinderGeometry(0.35, 0.4, 2.4, 8);
+      for (let c = -1; c <= 1; c += 2) {
+        const col = new THREE.Mesh(colGeo, templeStoneMat);
+        col.position.set(-0.4, 3.8, c * 1.5);
+        col.castShadow = true;
+        leftRuin.add(col);
+      }
+
+      // Temple lintel roof
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.5, 4.2), templeStoneMat);
+      roof.position.set(-0.4, 5.2, 0);
+      roof.castShadow = true;
+      leftRuin.add(roof);
+
+      // Overgrown steps cascading toward the track (as in reference image)
+      for (let s = 0; s < 3; s++) {
+        const step = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 3.2), templeStoneMat);
+        step.position.set(1.6 - s * 0.4, 0.18 + s * 0.35, 0);
+        step.receiveShadow = true;
+        leftRuin.add(step);
+      }
+
+      leftRuin.position.set(-trackWidth / 2 - 3.2, 0, i);
+      group.add(leftRuin);
+
+      // Right Ancient Stone Wall Ruins
+      const rightRuin = new THREE.Group();
+      const wallGeo = new THREE.BoxGeometry(3.2, 3.2, 6.5);
+      const wall = new THREE.Mesh(wallGeo, templeStoneMat);
+      wall.position.set(0, 1.6, 0);
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      rightRuin.add(wall);
+
+      // Broken columns
+      const rCol = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 3.8, 8), templeStoneMat);
+      rCol.position.set(-1.2, 1.9, 1.5);
+      rCol.castShadow = true;
+      rightRuin.add(rCol);
+
+      rightRuin.position.set(trackWidth / 2 + 3.2, 0, i);
+      group.add(rightRuin);
+
+      // Ancient Overhanging Temple Arch connecting left and right ruins over the path (Screenshot 2)
+      if (Math.abs(i) < 2) {
+        const templeArch = new THREE.Mesh(new THREE.BoxGeometry(trackWidth + 6.4, 0.9, 1.4), templeStoneMat);
+        templeArch.position.set(0, 7.8, i);
+        templeArch.castShadow = true;
+        group.add(templeArch);
+
+        const archMoss = new THREE.Mesh(new THREE.BoxGeometry(trackWidth + 6.6, 0.2, 1.6), mossCoverMat);
+        archMoss.position.set(0, 8.3, i);
+        group.add(archMoss);
+      }
+    }
+
+    return group;
+  }
+
+  /**
+   * Zone 3: Mossy Stone Passages with burning torches and towering mossy masonry.
+   */
+  private createMossyPassageDecor(length: number, trackWidth: number): THREE.Group {
+    const group = new THREE.Group();
+    const stoneTex = textureManager.getAncientStoneTexture();
+
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: stoneTex,
+      roughness: 0.9,
+    });
+    const mossMat = new THREE.MeshStandardMaterial({
+      color: 0x27431e,
+      roughness: 0.95,
+    });
+    const flameMat = new THREE.MeshBasicMaterial({
+      color: 0xffaa33,
+    });
+
+    // Massive overgrown stone canyon walls
+    const wallGeo = new THREE.BoxGeometry(2.4, 7.5, length);
     const leftWall = new THREE.Mesh(wallGeo, wallMat);
-    leftWall.position.set(-trackWidth / 2 - 0.9, 3.25, 0);
+    leftWall.position.set(-trackWidth / 2 - 1.2, 3.75, 0);
+    leftWall.castShadow = true;
+    leftWall.receiveShadow = true;
     group.add(leftWall);
 
     const rightWall = new THREE.Mesh(wallGeo, wallMat);
-    rightWall.position.set(trackWidth / 2 + 0.9, 3.25, 0);
+    rightWall.position.set(trackWidth / 2 + 1.2, 3.75, 0);
+    rightWall.castShadow = true;
+    rightWall.receiveShadow = true;
     group.add(rightWall);
 
-    // Torches and moss layers on walls
-    for (let i = -length / 2 + 5; i < length / 2; i += 8) {
-      const torchGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 6);
-      const torchMeshL = new THREE.Mesh(torchGeo, torchMat);
-      torchMeshL.position.set(-trackWidth / 2 + 0.1, 2.5, i);
-      group.add(torchMeshL);
+    // Stone Archway & Torches
+    for (let i = -length / 2 + 5; i < length / 2; i += 9) {
+      // Torches on walls
+      const torchL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 6), wallMat);
+      torchL.position.set(-trackWidth / 2 + 0.1, 2.6, i);
+      group.add(torchL);
 
-      const torchMeshR = new THREE.Mesh(torchGeo, torchMat);
-      torchMeshR.position.set(trackWidth / 2 - 0.1, 2.5, i);
-      group.add(torchMeshR);
+      const flameL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), flameMat);
+      flameL.position.set(-trackWidth / 2 + 0.1, 2.9, i);
+      group.add(flameL);
 
-      // Moss patch on wall
-      const mossGeo = new THREE.BoxGeometry(0.1, 2.2, 3.5);
-      const mossL = new THREE.Mesh(mossGeo, mossMat);
-      mossL.position.set(-trackWidth / 2 + 0.05, 1.5, i - 2);
-      group.add(mossL);
+      const torchR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 6), wallMat);
+      torchR.position.set(trackWidth / 2 - 0.1, 2.6, i);
+      group.add(torchR);
+
+      const flameR = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), flameMat);
+      flameR.position.set(trackWidth / 2 - 0.1, 2.9, i);
+      group.add(flameR);
+
+      // Moss crest on walls
+      const mossPatch = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.5, 4.0), mossMat);
+      mossPatch.position.set(-trackWidth / 2 + 0.05, 2.0, i - 1.5);
+      group.add(mossPatch);
     }
 
     return group;
@@ -224,11 +394,6 @@ export class TrackSection {
     this.mesh.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         child.geometry.dispose();
-        if (Array.isArray(child.material)) {
-          child.material.forEach((m) => m.dispose());
-        } else {
-          child.material.dispose();
-        }
       }
     });
   }
@@ -248,9 +413,7 @@ export class TrackManager {
 
     for (let i = 0; i < count; i++) {
       const section = new TrackSection();
-      // Initially, player starts at z = 0.
-      // Sections extend from in front of player (z < 0) to behind player (z > 0)
-      const z = (1 - i) * len; // e.g., +30, 0, -30, -60, -90, -120
+      const z = (1 - i) * len;
       section.setPositionZ(z);
       this.sections.push(section);
       this.scene.add(section.mesh);
@@ -267,10 +430,6 @@ export class TrackManager {
     }
   }
 
-  /**
-   * Advances the track forward toward the player (in +Z direction) by deltaMove.
-   * Recycles sections that pass behind the player camera.
-   */
   public update(deltaMove: number, currentZone: VisualZone): void {
     const len = CONFIG.WORLD.SECTION_LENGTH;
     const despawnZ = CONFIG.WORLD.DESPAWN_Z + len;
@@ -279,16 +438,12 @@ export class TrackManager {
       section.setPositionZ(section.z + deltaMove);
     }
 
-    // Check if the closest section passed behind the camera
     for (const section of this.sections) {
       if (section.z > despawnZ) {
-        // Find furthest section in front (smallest Z)
         let minZ = Infinity;
         for (const s of this.sections) {
           if (s.z < minZ) minZ = s.z;
         }
-
-        // Recycle to the front
         section.setPositionZ(minZ - len);
         section.setZone(currentZone);
       }

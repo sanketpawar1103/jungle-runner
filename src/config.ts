@@ -82,18 +82,18 @@ export const CONFIG = {
     ZONE_CYCLE_DISTANCE: 300.0, // distance per visual zone in meters
   },
 
-  // Camera Settings
+  // Camera Settings - Cinematic Over-The-Shoulder Framing
   CAMERA: {
-    FOV: 60,
+    FOV: 64,
     NEAR: 0.1,
-    FAR: 250,
+    FAR: 260,
     OFFSET_X: 0,
-    OFFSET_Y: 3.8,
-    OFFSET_Z: 6.2,
-    LOOK_AT_Y: 1.4,
-    LOOK_AT_Z: -10.0,
-    SMOOTH_X_FACTOR: 8.0,
-    SMOOTH_Y_FACTOR: 6.0,
+    OFFSET_Y: 2.6,
+    OFFSET_Z: 4.9,
+    LOOK_AT_Y: 1.5,
+    LOOK_AT_Z: -18.0,
+    SMOOTH_X_FACTOR: 8.5,
+    SMOOTH_Y_FACTOR: 6.5,
   },
 
   // Visual Zones

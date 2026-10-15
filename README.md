@@ -62,6 +62,7 @@ jungle-runner/
 │   ├── ui/
 │   │   └── hud.ts           # Loading, Menu, HUD, Pause, Game Over, and Error screens
 │   └── utils/
+│       ├── procedural-textures.ts # Procedural PBR textures (stone, bark, ground, coins)
 │       └── storage.ts       # Error-safe localStorage wrapper for best distance record
 ├── tests/
 │   ├── config.test.ts       # Central config, zone math, and boundary constraint tests
